@@ -1,33 +1,7 @@
 import { initShader } from './shader.js';
+import { createObject } from './mesh.js';
+import { createSim } from './fluidsim.js';
 
-
-function createObject(gl, format, vertices, indices) {
-  const vbo = gl.createBuffer();
-  const vao = gl.createVertexArray();
-  const ebo = gl.createBuffer();
-
-  gl.bindVertexArray(vao);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-
-  const stride = 4*format.reduce((acc, x) => acc+x, 0);
-  console.log(stride);
-  let offset = 0;
-  format.forEach((size, idx) => {
-    console.log(idx, size, stride, offset);
-    gl.enableVertexAttribArray(idx);
-    gl.vertexAttribPointer(idx, size, gl.FLOAT, false, 0, offset); 
-    offset += 4*size;
-  });
-
-  // gl.bindVertexArray(0);
-
-  return {vbo, vao, ebo};
-}
 
 
 window.onload = () => {
@@ -41,68 +15,117 @@ window.onload = () => {
     return;
   }
 
+  const importExtension = (name) => {
+    if (!gl.getExtension(name)) {
+      throw new Error(`failed to load extension ${name}`);
+    }
+  };
 
-  const triangle = createObject(gl, [ 3, 2 ],
-    [ -0.5, -0.5, 0.0,
-       0.5, -0.5, 0.0,
-       0.0,  0.5, 0.0,
+  importExtension("EXT_color_buffer_float");
+  // importExtension("OES_texture_float");
+  importExtension("OES_texture_float_linear");
+
+  const W = 512;
+  const H = 512;
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, W, H, 0, gl.RGBA, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+
+  const fbStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (fbStatus !== gl.FRAMEBUFFER_COMPLETE) {
+    throw new Error(`incomplete framebuffer: ${fbStatus.toString(16)}`);
+  }
+
+
+  const triangle = createObject(gl, [ 2, 3 ],
+    [
+      -0.5, -0.5,     2.0, 0.0, 0.0,
+       0.5, -0.5,     0.0, 1.0, 0.0,
+       0.0,  0.5,     0.0, 0.0, 1.0,
     ],
     [ 0, 1, 2 ],
   ); //*/
 
-  /*
-  const vertices = [
-    -0.5, -0.5, 0.0,   0, 0,
-    0.5, -0.5, 0.0,    1, 0,
-    0.0, 0.5, 0.0,     0.5, 1,
-  ];
-  const vbo = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-  //*/
 
+  const plane = createObject(gl, [ 2, 2 ],
+    [
+      -1, -1,    0, 0,
+       1, -1,    1, 0,
+      -1,  1,    0, 1,
+       1,  1,    1, 1,
+    ],
+    [ 0, 1, 3, 0, 3, 2 ],
+  );
 
   const program = initShader(
     gl,
     `#version 300 es
-    layout (location = 0) in vec4 a_pos;
-    layout (location = 1) in vec4 a_uv;
+    layout (location = 0) in vec2 a_pos;
+    layout (location = 1) in vec3 a_color;
 
-    out vec4 s_uv;
+    out vec3 s_color;
 
     void main() {
-      gl_Position = a_pos;
-      s_uv = a_uv;
+      gl_Position = vec4(a_pos, 0, 1);
+      s_color = a_color;
     }`,
     `#version 300 es
-    precision mediump float;
+    precision highp float;
     out vec4 fragColor;
-    in vec4 s_uv;
+    in vec3 s_color;
 
     void main() {
-      fragColor = vec4(1, 0, 0.5, 1);
+      fragColor = vec4(s_color.rgb, 1);
     }`
   );
 
+
+  const program2 = initShader(gl,
+    `#version 300 es
+    layout (location = 0) in vec2 a_pos;
+    layout (location = 1) in vec2 a_uv;
+
+    out vec2 s_uv;
+
+    void main() {
+      gl_Position = vec4(a_pos, -0.1, 1);
+      s_uv = a_uv;
+    }
+    `,
+    `#version 300 es
+    precision highp float;
+    out vec4 fragColor;
+    uniform sampler2D tex;
+    in vec2 s_uv;
+
+    void main() {
+      fragColor = texture(tex, s_uv);
+    }
+    `,
+  );
+
   document.body.append(canvas);
+
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.viewport(0, 0, W, H);
+  gl.clearColor(0.0, 1.0, 0.0, 1.0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(program);
+  triangle.draw();
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.clearColor(0.0, 0.0, 1.0, 1.0);
   gl.clear(gl.COLOR_BUFFER_BIT);
-  gl.useProgram(program);
-
-  gl.bindVertexArray(triangle.vao);
-  gl.drawElements(gl.TRIANGLES, 3, gl.UNSIGNED_SHORT, 0);
-  const err = gl.getError();
-  console.log(err, gl.NO_ERROR);
-  if (err !== gl.NO_ERROR) {
-    console.log(err);
-  }
-  //*/
-
-  /*
-  gl.enableVertexAttribArray(gl.getAttribLocation(program, "a_pos"));
-  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-  gl.vertexAttribPointer(gl.getAttribLocation(program, "a_pos"), 3, gl.FLOAT, false, 4*5, 0);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
-  //*/
+  gl.useProgram(program2);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  plane.draw();
 }
