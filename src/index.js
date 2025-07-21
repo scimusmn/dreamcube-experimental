@@ -35,8 +35,8 @@ window.onload = () => {
   document.body.append(canvas2);
 
 
-  const W = 256;
-  const H = 256;
+  const W = 512;
+  const H = W;
   const sim = createSim(gl, W, H);
 
   const sourceData = [ ...Array(H) ].map(() => [ ...Array(W) ].map(() => [ 0, 0, 0, 0 ]));
@@ -50,16 +50,20 @@ window.onload = () => {
     set(W-1, y, [ 0, 0 ]); 
   }
 
-  const cy = Math.floor(H/2);
-  set(1, cy, [ 8, 0 ]);
-  set(1, cy+1, [ 8, 0 ]);
-  set(2, cy, [ 8, 0 ]);
-  set(2, cy+1, [ 8, 0 ]);
+  const addStream = (x, y, dx, dy, v) => {
+    for (let X=x; X<x+dx; X++) {
+      for (let Y=y; Y<y+dy; Y++) {
+        set(X, Y, v);
+      }
+    }
+  }
 
-  set(H-1, cy+10, [ -8, 0 ]);
-  set(H-1, cy+11, [ -8, 0 ]);
-  set(H-2, cy+10, [ -8, 0 ]);
-  set(H-2, cy+11, [ -8, 0 ]);
+  const cx = Math.floor(W/2);
+  const cy = Math.floor(H/2);
+  addStream(1,   cy, 2, 2, [  8,  0 ]);
+  addStream(H-3, cy, 2, 2, [ -8,  0 ]);
+  addStream(cx,   1, 2, 2, [  0,  8 ]);
+  addStream(cx, W-3, 2, 2, [  0, -8 ]);
 
 
 
@@ -125,7 +129,7 @@ window.onload = () => {
       float r = length(v);
 
       // frag = vec4(hsv2rgb(vec3(angle, 1.0, r)), 1.0);
-      frag = vec4(0, r-1.0, r, 1);
+      frag = vec4(0, r-1.0, r+0.2, 1);
     }`
   );
 
@@ -205,7 +209,7 @@ window.onload = () => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
     gl.useProgram(program);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, sim.fg().field);
+    gl.bindTexture(gl.TEXTURE_2D, sim.fg().texture);
     plane.draw();
     gl.bindTexture(gl.TEXTURE_2D, null);
 

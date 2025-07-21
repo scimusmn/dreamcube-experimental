@@ -1,5 +1,6 @@
-import { initShader } from './shader.js';
+import { initShader, setUniforms, unbindTextures } from './shader.js';
 import { createObject } from './mesh.js';
+import { createDoubleBuffer } from './gpgpu.js';
 
 
 const vertexShader = `#version 300 es
@@ -38,8 +39,9 @@ void main() {
   } else {
     n = normalize(v);
   }
-  vec2 a = texture(field, s_uv-vec2(dx*n.x, dy*n.y)).xy;
-  frag = vec4(mix(v, 0.99*a, 20.0*dt), 0, 1);
+  float s = 1.0;
+  vec2 a = texture(field, s_uv-s*vec2(dx*n.x, dy*n.y)).xy;
+  frag = vec4(mix(v, 0.999*a, 20.0*dt), 0, 1);
 }
 `;
 
@@ -94,30 +96,6 @@ export const createShaders = (gl) => {
 };
 
 
-export const createFramebuffer = (gl, w, h) => {
-  const field = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, field);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, null);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-  const fb = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, field, 0);
-
-  const fbStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  if (fbStatus !== gl.FRAMEBUFFER_COMPLETE) {
-    throw new Error(`incomplete framebuffer: ${fbStatus.toString(16)}`);
-  }
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-
-  return { field, fb };
-}
-
-
 export const createSim = (gl, w, h) => {
   const { advectProgram, stripDivProgram } = createShaders(gl);
   const plane = createObject(gl, [2, 2],
@@ -128,21 +106,10 @@ export const createSim = (gl, w, h) => {
     ], [ 0, 1, 3, 0, 3, 2 ],
   );
 
-
-  const fbA = createFramebuffer(gl, w, h);
-  const fbB = createFramebuffer(gl, w, h);
-
-  let fgA = true;
-  const swapBuffers = () => {
-    if (fgA) {
-      fgA = false;
-    } else {
-      fgA = true;
-    }
-  }
-
-  const fg = () => fgA ? fbA : fbB;
-  const bg = () => fgA ? fbB : fbA;
+  const buffers = createDoubleBuffer(gl, w, h);
+  const fg = buffers.fgBuf;
+  const bg = buffers.bgBuf;
+  const swapBuffers = buffers.swapBuffers;
 
   const advect = (field, source, dt) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, fg().fb);
@@ -152,24 +119,15 @@ export const createSim = (gl, w, h) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
     gl.useProgram(advectProgram);
-    gl.uniform1i(gl.getUniformLocation(advectProgram, 'field'), 0);
-    gl.uniform1i(gl.getUniformLocation(advectProgram, 'source'), 1);
-    gl.uniform1f(gl.getUniformLocation(advectProgram, 'dx'), 1/w);
-    gl.uniform1f(gl.getUniformLocation(advectProgram, 'dy'), 1/h);
-    gl.uniform1f(gl.getUniformLocation(advectProgram, 'dt'), dt);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, field);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, source);
+    setUniforms(gl, advectProgram, {
+      texture: { field, source },
+      float: { dx: 1/w, dy: 1/h, dt },
+    });
 
     plane.draw();
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, null);
+    unbindTextures(gl);
   }
 
 
@@ -181,29 +139,23 @@ export const createSim = (gl, w, h) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
 
     gl.useProgram(stripDivProgram);
-    gl.uniform1i(gl.getUniformLocation(stripDivProgram, 'field'), 0);
-    gl.uniform1i(gl.getUniformLocation(stripDivProgram, 'source'), 1);
-    gl.uniform1f(gl.getUniformLocation(stripDivProgram, 'dx'), 1/w);
-    gl.uniform1f(gl.getUniformLocation(stripDivProgram, 'dy'), 1/h);
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, field);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, source);
+    setUniforms(gl, stripDivProgram, {
+      texture: { field, source },
+      float: { dx: 1/w, dy: 1/h },
+    });
 
     plane.draw();
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, null);
+    unbindTextures(gl);
   }
 
   const step = (source, dt) => {
     swapBuffers();
-    advect(bg().field, source, dt);
+    advect(bg().texture, source, dt);
     for (let i=0; i<20; i++) {
       swapBuffers();
-      stripDiv(bg().field, source);
+      stripDiv(bg().texture, source);
     }
   }
 
