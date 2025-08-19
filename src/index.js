@@ -6,8 +6,8 @@ import { createSim } from './fluidsim.js';
 
 window.onload = () => {
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 1024;
+  canvas.width = 1920;
+  canvas.height = 1200;
 
   const canvas2 = document.createElement('canvas');
   canvas2.width = 512;
@@ -36,7 +36,7 @@ window.onload = () => {
 
 
   const W = 512;
-  const H = W;
+  const H = W * canvas.height/canvas.width;
   const sim = createSim(gl, W, H);
 
   const sourceData = [ ...Array(H) ].map(() => [ ...Array(W) ].map(() => [ 0, 0, 0, 0 ]));
@@ -60,10 +60,11 @@ window.onload = () => {
 
   const cx = Math.floor(W/2);
   const cy = Math.floor(H/2);
+  console.log(W, H);
   addStream(1,   cy, 2, 2, [  8,  0 ]);
-  addStream(H-3, cy, 2, 2, [ -8,  0 ]);
+  addStream(W-3, cy, 2, 2, [ -8,  0 ]);
   addStream(cx,   1, 2, 2, [  0,  8 ]);
-  addStream(cx, W-3, 2, 2, [  0, -8 ]);
+  addStream(cx, H-3, 2, 2, [  0, -8 ]);
 
 
 
@@ -140,67 +141,8 @@ window.onload = () => {
     const dt = ms ? (now - ms)/1000 : 1/60;
     // console.log(`${Math.floor(1/dt)} fps`);
     ms = now;
-
-    /*
-    sim.stripDiv(sim.bg().field, source);
-    for (let i=0; i<100; i++) {
-      sim.swapBuffers();
-      sim.stripDiv(sim.bg().field, source);
-    }
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, sim.fg().fb);
-    const pixels = new Float32Array(W*H*4);
-    gl.readPixels(0, 0, W, H, gl.RGBA, gl.FLOAT, pixels);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    const vectors = [ ...Array(W*H).keys() ].reduce(
-      (acc, idx) => [ ...acc, [ pixels[4*idx], pixels[4*idx + 1] ] ],
-      [],
-    );
-
-
-    ctx.lineWidth = 0.06;
-    const scale = 64;
-    ctx.setTransform(ctx.canvas.width/W, 0, 0, ctx.canvas.height/H, 0.5*ctx.canvas.width/W, 0.5*ctx.canvas.height/H);
-
-    const drawVector = (x, y, vx, vy) => {
-      if (vx == 0 && vy == 0) {
-        return;
-      }
-      const [ tx, ty ] = [ x+vx, y+vy ];
-      const angle = Math.atan2(vy, vx);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x+vx, y+vy);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(tx - 0.25*Math.cos(angle+1), ty - 0.25*Math.sin(angle+1));
-      ctx.lineTo(tx, ty);
-      ctx.lineTo(tx - 0.25*Math.cos(angle-1), ty - 0.25*Math.sin(angle-1));
-      ctx.stroke();
-    }
-
-    const drawField = (field) => field.forEach((v, idx) => {
-      const x = idx % W;
-      const y = Math.floor(idx / W);
-      drawVector(x, y, v[0], v[1], 0.1);
-      console.log(x, y, v);
-    });
-
-    // drawField(vectors);
-
-    // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    // gl.clearColor(0, 0, 1, 1);
-    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-
-    // gl.useProgram(program);
-    // gl.bindTexture(gl.TEXTURE_2D, sim.fg().field);
-    // // gl.bindTexture(gl.TEXTURE_2D, source);
-    // plane.draw();
-    //*/
-
-    
+   
     sim.step(source, dt);
-    // sim.advect(sim.bg().field, source, 1/60);
 
     console.log(Math.floor(1/dt));
 
@@ -213,24 +155,8 @@ window.onload = () => {
     plane.draw();
     gl.bindTexture(gl.TEXTURE_2D, null);
 
-    //*/
     requestAnimationFrame(render);
   }
 
   requestAnimationFrame(render);
-
-  // gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-  // gl.viewport(0, 0, W, H);
-  // gl.clearColor(0.0, 1.0, 0.0, 1.0);
-  // gl.clear(gl.COLOR_BUFFER_BIT);
-  // gl.useProgram(program);
-  // triangle.draw();
-
-  // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-  // gl.clearColor(0.0, 0.0, 1.0, 1.0);
-  // gl.clear(gl.COLOR_BUFFER_BIT);
-  // gl.useProgram(program2);
-  // gl.bindTexture(gl.TEXTURE_2D, tex);
-  // plane.draw();
 }

@@ -88,6 +88,22 @@ void main() {
 `;
 
 
+const distortShader = `#version 300 es
+precision highp float;
+in vec2 s_uv;
+uniform sampler2D field;
+uniform sampler2D tex;
+uniform float dx;
+uniform float dy;
+out vec4 frag;
+
+void main() {
+  vec2 v = texture(field, s_uv).xy;
+  frag = texture(tex, s_uv - vec2(v.x*dx, v.y*dy);
+}
+`;
+
+
 
 export const createShaders = (gl) => {
   const advectProgram = initShader(gl, vertexShader, advectShader);
