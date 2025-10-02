@@ -31,12 +31,12 @@ export const createFluidCanvas = (width, height) => {
   const sourceData = [ ...Array(H) ].map(() => [ ...Array(W) ].map(() => [ 0, 0, 0, 0 ]));
   const set = (x, y, v) => sourceData[y][x] = [ ...v, 0, 1 ];
   for (let x=0; x<W; x++) {
-    set(x,   0, [ 0, 0 ]);
-    set(x, H-1, [ 0, 0 ]);
+    set(x,   0, [ 0,  0.1 ]);
+    set(x, H-1, [ 0, -0.1 ]);
   }
   for (let y=0; y<H; y++) {
-    set(0,   y, [ 0, 0 ]); 
-    set(W-1, y, [ 0, 0 ]); 
+    set(0,   y, [  0.1, 0 ]); 
+    set(W-1, y, [ -0.1, 0 ]); 
   }
 
   const addStream = (x, y, dx, dy, v) => {
@@ -49,10 +49,11 @@ export const createFluidCanvas = (width, height) => {
 
   const cx = Math.floor(W/2);
   const cy = Math.floor(H/2);
-  addStream(1,   cy, 2, 2, [  8,  0 ]);
-  addStream(W-3, cy, 2, 2, [ -8,  0 ]);
-  addStream(cx,   1, 2, 2, [  0,  8 ]);
-  addStream(cx, H-3, 2, 2, [  0, -8 ]);
+  const v = 8;
+  addStream(1,   cy, 2, 2, [  v,  0 ]);
+  addStream(W-3, cy, 2, 2, [ -v,  0 ]);
+  addStream(cx,   1, 2, 2, [  0,  v ]);
+  addStream(cx, H-3, 2, 2, [  0, -v ]);
 
 
   const source = gl.createTexture();
@@ -131,7 +132,11 @@ export const createFluidCanvas = (width, height) => {
 
   const readSimPoint = (x, y) => {
     const idx = (Math.floor(H*y)*W + Math.floor(W*x))*4;
-    return [ texelData[idx], texelData[idx+1] ];
+    if (idx < 0 || idx > H*W*4) {
+      return [ 0, 0 ];
+    } else {
+      return [ texelData[idx], texelData[idx+1] ];
+    }
   }
 
 
