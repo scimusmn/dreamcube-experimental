@@ -1,4 +1,5 @@
 import { createFluidCanvas } from './fluidCanvas.js';
+import { loadImage } from './image.js';
 
 
 const lerp = (a, b, x) => (1-x)*a + (x*b);
@@ -13,6 +14,18 @@ const lerpv = (u, v, x) => u.map((_, i) => lerp(u[i], v[i], x));
 
 
 window.onload = async () => {
+  const diatomImages = await Promise.all([
+    loadImage('/texture/diatom1.png'),
+    loadImage('/texture/diatom3.png'),
+    loadImage('/texture/diatom4.png'),
+    loadImage('/texture/diatom5.png'),
+    loadImage('/texture/diatom6.png'),
+    // loadImage('/texture/diatom7.png'),
+    // loadImage('/texture/diatom8.png'),
+    // loadImage('/texture/diatom9.png'),
+    // loadImage('/texture/diatom10.png'),
+  ]);
+
   const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1080);
   const canvas = document.createElement('canvas');
   canvas.width = fluidCanvas.width;
@@ -20,11 +33,12 @@ window.onload = async () => {
   document.body.append(canvas);
   const ctx = canvas.getContext('2d');
 
-  const N = 10; const M = 10;
+  const N = 20; const M = 20;
   let particles = [ ...Array(N).keys() ].map(i => [ ...Array(M).keys() ].map(j => ({
     r: [ i*(canvas.width/N), j*(canvas.height/M) ],
     angle: 2*Math.PI*Math.random(),
     angleSpeed: 0,
+    img: diatomImages[Math.floor(Math.random()*diatomImages.length)],
     v: [ 2*Math.random()-1, 2*Math.random()-1 ],
   }))).flat();
 
@@ -38,10 +52,12 @@ window.onload = async () => {
       const { r, v, angle } = p;
       const nx = [ Math.cos(angle), Math.sin(angle) ];
       const ny = [ Math.sin(angle), Math.cos(angle) ];
-
-      const s = 10;
-      const [ lx, ly ] = addv(r, scalev(nx, s));
-      const [ rx, ry ] = subv(r, scalev(nx, s));
+      
+      const scale = 0.01;
+      const { width, height } = p.img;
+      const separation = 0.5*scale * Math.min(width, height) * Math.max(width/height, height/width);
+      const [ lx, ly ] = addv(r, scalev(nx, separation));
+      const [ rx, ry ] = subv(r, scalev(nx, separation));
       const fl = readFluidVelocity(lx/canvas.width, ly/canvas.height);
       const fr = readFluidVelocity(rx/canvas.width, ry/canvas.height);
 
@@ -54,7 +70,16 @@ window.onload = async () => {
       p.r = addv(p.r, scalev(p.v, dt));
       p.r[0] = clamp(p.r[0], 10, canvas.width-10);
       p.r[1] = clamp(p.r[1], 10, canvas.height-10);
+
+      ctx.save();
+      ctx.translate(p.r[0], p.r[1]);
+      ctx.rotate(p.angle);
+      if (height > width);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(p.img, -scale*width/2, -scale*height/2, scale*width, scale*height);
+      ctx.restore();
       
+      /*
       ctx.strokeStyle = '#000000';
       ctx.beginPath();
       ctx.moveTo(lx, ly);
@@ -86,6 +111,7 @@ window.onload = async () => {
       ctx.moveTo(r[0], r[1]);
       ctx.lineTo(r[0]+10*force[0], r[1]+10*force[1]);
       ctx.stroke();
+      //*/
     });
     requestAnimationFrame(draw);
   }
