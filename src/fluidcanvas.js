@@ -1,25 +1,13 @@
 import { initShader } from './shader.js';
 import { createObject } from './mesh.js';
 import { createSim } from './fluidsim.js';
-import { createVideo } from './video.js';
-import { gaussianBlur, sobelX, sobelY } from './effect.js';
 
 
-
-window.onload = async () => {
+export const createFluidCanvas = (width, height) => {
   const canvas = document.createElement('canvas');
-  // canvas.width = 1920;
-  // canvas.height = 1200;
-  canvas.width = 640;
-  canvas.height = 480;
-
-  const canvas2 = document.createElement('canvas');
-  canvas2.width = 512;
-  canvas2.height = 512;
-
-
+  canvas.width = width;
+  canvas.height = height;
   const gl = canvas.getContext('webgl2');
-  const ctx = canvas2.getContext('2d');
 
   if (gl == null) {
     alert("Unable to initialize WebGL!");
@@ -37,8 +25,6 @@ window.onload = async () => {
   importExtension("OES_texture_float_linear");
   document.body.append(canvas);
   document.body.append(canvas2);
-
-  const video = await createVideo();
 
   const W = 512;
   const H = W * canvas.height/canvas.width;
@@ -69,7 +55,6 @@ window.onload = async () => {
   addStream(W-3, cy, 2, 2, [ -8,  0 ]);
   addStream(cx,   1, 2, 2, [  0,  8 ]);
   addStream(cx, H-3, 2, 2, [  0, -8 ]);
-
 
 
   const source = gl.createTexture();
@@ -138,62 +123,22 @@ window.onload = async () => {
   );
 
 
-  const program2 = initShader(gl,
-    `#version 300 es
-    layout (location = 0) in vec2 a_pos;
-    layout (location = 1) in vec2 a_uv;
-    out vec2 s_uv;
-    void main() {
-      gl_Position = vec4(a_pos, 0, 1);
-      s_uv = a_uv;
-    }`,
-    `#version 300 es
-    precision highp float;
-    in vec2 s_uv;
-    uniform sampler2D tex;
-    out vec4 frag;
-
-    void main() {
-      vec3 v = texture(tex, s_uv).rgb;
-      frag = vec4(v, 1.0);
-    }`
-  );
-
-  const videoTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
   let ms = null;
   const render = (now) => {
     const dt = ms ? (now - ms)/1000 : 1/60;
-    // console.log(`${Math.floor(1/dt)} fps`);
     ms = now;
    
     sim.step(source, dt);
 
-    // console.log(Math.floor(1/dt));
-
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0, 0, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
-    // gl.useProgram(program);
-    // gl.activeTexture(gl.TEXTURE0);
-    // gl.bindTexture(gl.TEXTURE_2D, sim.fg().texture);
-    // plane.draw();
-    // gl.bindTexture(gl.TEXTURE_2D, null);
-
-    gl.useProgram(program2);
+    gl.useProgram(program);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, videoTexture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-    // plane.draw();
-    // gaussianBlur(gl, gl.canvas.width, gl.canvas.height, videoTexture, 5, 2);
-    sobelY(gl, gl.canvas.width, gl.canvas.height, videoTexture);
-
-    requestAnimationFrame(render);
+    gl.bindTexture(gl.TEXTURE_2D, sim.fg().texture);
+    plane.draw();
+    gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
-  requestAnimationFrame(render);
+  return [ canvas, render ]
 }

@@ -11,7 +11,11 @@ function compileShader(gl, type, source) {
 }
 
 
-export function initShader(gl, vsSource, fsSource) {
+export function initShader(gl, vsSource, fsSource, debug=false) {
+  if (debug) {
+    console.log(vsSource);
+    console.log(fsSource);
+  }
   const vs = compileShader(gl, gl.VERTEX_SHADER, vsSource);
   const fs = compileShader(gl, gl.FRAGMENT_SHADER, fsSource);
   const program = gl.createProgram();

@@ -33,7 +33,3 @@ export const createDoubleBuffer = (gl, w, h) => {
   const swapBuffers = () => aIsFg = !aIsFg;
   return { fgBuf, bgBuf, swapBuffers };
 }
-
-
-
-
