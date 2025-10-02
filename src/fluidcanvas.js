@@ -23,8 +23,6 @@ export const createFluidCanvas = (width, height) => {
   importExtension("EXT_color_buffer_float");
   // importExtension("OES_texture_float");
   importExtension("OES_texture_float_linear");
-  document.body.append(canvas);
-  document.body.append(canvas2);
 
   const W = 512;
   const H = W * canvas.height/canvas.width;
@@ -123,12 +121,27 @@ export const createFluidCanvas = (width, height) => {
   );
 
 
+  const texelData = new Float32Array(W*H*4);
+  const readSimVelocity = () => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, sim.bg().fb);
+    gl.readPixels(0, 0, W, H, gl.RGBA, gl.FLOAT, texelData);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return texelData;
+  };
+
+  const readSimPoint = (x, y) => {
+    const idx = (Math.floor(H*y)*W + Math.floor(W*x))*4;
+    return [ texelData[idx], texelData[idx+1] ];
+  }
+
+
   let ms = null;
   const render = (now) => {
     const dt = ms ? (now - ms)/1000 : 1/60;
     ms = now;
    
     sim.step(source, dt);
+    readSimVelocity();
 
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0, 0, 1, 1);
@@ -140,5 +153,5 @@ export const createFluidCanvas = (width, height) => {
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
 
-  return [ canvas, render ]
+  return [ canvas, render, readSimPoint ]
 }
