@@ -15,15 +15,27 @@ const lerpv = (u, v, x) => u.map((_, i) => lerp(u[i], v[i], x));
 
 window.onload = async () => {
   const diatomImages = await Promise.all([
-    loadImage('/texture/diatom1.png'),
-    loadImage('/texture/diatom3.png'),
+    // loadImage('/texture/diatom1.png'),
+    // loadImage('/texture/diatom3.png'),
     loadImage('/texture/diatom4.png'),
     loadImage('/texture/diatom5.png'),
     loadImage('/texture/diatom6.png'),
-    // loadImage('/texture/diatom7.png'),
-    // loadImage('/texture/diatom8.png'),
-    // loadImage('/texture/diatom9.png'),
-    // loadImage('/texture/diatom10.png'),
+    loadImage('/texture/diatom7.png'),
+    loadImage('/texture/diatom8.png'),
+    loadImage('/texture/diatom9.png'),
+    loadImage('/texture/diatom10.png'),
+    loadImage('/texture/diatom11.png'),
+    loadImage('/texture/diatom12.png'),
+    loadImage('/texture/diatom13.png'),
+    loadImage('/texture/diatom14.png'),
+    loadImage('/texture/diatom15.png'),
+    loadImage('/texture/diatom16.png'),
+    loadImage('/texture/diatom17.png'),
+    loadImage('/texture/diatom18.png'),
+    loadImage('/texture/diatom19.png'),
+    loadImage('/texture/diatom20.png'),
+    loadImage('/texture/diatom21.png'),
+    loadImage('/texture/diatom22.png'),
   ]);
 
   const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1080);
@@ -53,7 +65,7 @@ window.onload = async () => {
       const nx = [ Math.cos(angle), Math.sin(angle) ];
       const ny = [ Math.sin(angle), Math.cos(angle) ];
       
-      const scale = 0.01;
+      const scale = 0.05;
       const { width, height } = p.img;
       const separation = 0.5*scale * Math.min(width, height) * Math.max(width/height, height/width);
       const [ lx, ly ] = addv(r, scalev(nx, separation));
@@ -61,9 +73,9 @@ window.onload = async () => {
       const fl = readFluidVelocity(lx/canvas.width, ly/canvas.height);
       const fr = readFluidVelocity(rx/canvas.width, ry/canvas.height);
 
-      const force = addv(fl, fr);
+      const force = addv(addv(fl, fr), scalev([ 2*Math.random()-1, 2*Math.random()-1 ], 0.1));
 
-      const torque = dot(ny, fl) - dot(ny, fr);
+      const torque = dot(ny, fl) - dot(ny, fr) + 0.1*(2*Math.random()-1);
       p.angleSpeed = clamp(lerp(p.angleSpeed+0.1*torque*dt, 0, dt), -5, 5);
       p.angle += p.angleSpeed;
       p.v = lerpv(addv(p.v, force), [ 0, 0 ], 0.5*dt);

@@ -50,10 +50,11 @@ export const createFluidCanvas = (width, height) => {
   const cx = Math.floor(W/2);
   const cy = Math.floor(H/2);
   const v = 2;
-  addStream(1,   cy, 2, 2, [  v,  0 ]);
-  addStream(W-3, cy, 2, 2, [ -v,  0 ]);
-  addStream(cx,   1, 2, 2, [  0,  v ]);
-  addStream(cx, H-3, 2, 2, [  0, -v ]);
+  const g = 100;
+  addStream(1,   cy+g, 2, 2, [  v, -v ]);
+  addStream(W-3, cy-g, 2, 2, [ -v,  v ]);
+  addStream(cx-g,   1, 2, 2, [  v,  v ]);
+  addStream(cx+g, H-3, 2, 2, [ -v, -v ]);
 
 
   const source = gl.createTexture();
