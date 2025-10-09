@@ -1,4 +1,4 @@
-import { createFluidCanvas } from './fluidCanvas.js';
+import { createFluidCanvas } from './fluidcanvas.js';
 import { loadImage } from './image.js';
 
 
