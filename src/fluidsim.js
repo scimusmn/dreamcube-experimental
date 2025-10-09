@@ -137,7 +137,7 @@ export const createSim = (gl, w, h) => {
     gl.useProgram(advectProgram);
     setUniforms(gl, advectProgram, {
       texture: { field, source },
-      float: { dx: 1/w, dy: 1/h, dt },
+      float: { dx: 1/w, dy: 1/h, dt: 1/60 },
     });
 
     plane.draw();
