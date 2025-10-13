@@ -83,19 +83,20 @@ window.onload = async () => {
       const fl = readFluidVelocity(lx/canvas.width, ly/canvas.height);
       const fr = readFluidVelocity(rx/canvas.width, ry/canvas.height);
 
-      const force = addv(addv(fl, fr), scalev([ 2*Math.random()-1, 2*Math.random()-1 ], 0.1));
+      const force = addv(fl, fr);
+      const acc = addv(force, scalev([ 2*Math.random()-1, 2*Math.random()-1 ], 1.0));
 
       const torque = dot(ny, fl) - dot(ny, fr) + 0.1*(2*Math.random()-1);
       p.angleSpeed = clamp(lerp(p.angleSpeed+0.1*torque*dt, 0, dt), -5, 5);
       p.angle += p.angleSpeed;
-      p.v = lerpv(addv(p.v, force), [ 0, 0 ], 0.5*dt);
+      p.v = lerpv(addv(p.v, acc), [ 0, 0 ], 0.5*dt);
       p.r = addv(p.r, scalev(p.v, dt));
       p.r[0] = clamp(p.r[0], 10, canvas.width-10);
       p.r[1] = clamp(p.r[1], 10, canvas.height-10);
 
       // densityCtx.drawImage(densityImg, -densityImg.width/2, -densityImg.height/2, densityImg.width, densityImg.height);
 
-      const glowRadius = lerp(p.glowR, scale * len(force) * 2 , 0.5);
+      const glowRadius = lerp(p.glowR, scale * len(force) * 2 * (1 - 0.3*Math.random()), 0.5);
       p.glowR = glowRadius;
     });
     // particles.forEach(p => {
