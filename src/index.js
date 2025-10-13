@@ -14,6 +14,80 @@ const lerpv = (u, v, x) => u.map((_, i) => lerp(u[i], v[i], x));
 
 
 window.onload = async () => {
+  const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1080);
+  const scale = 0.05;
+
+  // update the physical parameters (position, rotation, etc) of each diatom
+  const updateDiatoms = (diatoms, dt) => {
+    diatoms.forEach(p => {
+      const { r, v, a, angle } = p;
+      const nx = [ Math.cos(angle), Math.sin(angle) ];
+      const ny = [ Math.sin(angle), Math.cos(angle) ];
+      
+      const { width, height } = p.img;
+      const separation = 0.5*scale * Math.min(width, height) * Math.max(width/height, height/width);
+      const [ lx, ly ] = addv(r, scalev(nx, separation));
+      const [ rx, ry ] = subv(r, scalev(nx, separation));
+      const fl = readFluidVelocity(lx/canvas.width, ly/canvas.height);
+      const fr = readFluidVelocity(rx/canvas.width, ry/canvas.height);
+
+      const force = addv(fl, fr);
+      const acc = addv(force, scalev([ 2*Math.random()-1, 2*Math.random()-1 ], 1.0));
+
+      const torque = dot(ny, fl) - dot(ny, fr) + 0.1*(2*Math.random()-1);
+      p.angleSpeed = clamp(lerp(p.angleSpeed+0.1*torque*dt, 0, dt), -5, 5);
+      p.angle += p.angleSpeed;
+      p.v = lerpv(addv(p.v, acc), [ 0, 0 ], 0.5*dt);
+      p.r = addv(p.r, scalev(p.v, dt));
+      p.r[0] = clamp(p.r[0], 10, canvas.width-10);
+      p.r[1] = clamp(p.r[1], 10, canvas.height-10);
+
+      const glowRadius = lerp(p.glowR, p.scale * scale * len(force) * 2 * (1 - 0.3*Math.random()), 0.5);
+      p.glowR = glowRadius;
+    });
+  };
+
+
+  // create drawing canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = fluidCanvas.width;
+  canvas.height = fluidCanvas.height;
+  document.body.append(canvas);
+  const ctx = canvas.getContext('2d');
+
+
+  // draw diatoms
+  const glowImg = await loadImage('/texture/glow.png');
+  const drawDiatoms = (diatoms) => {
+    diatoms.forEach(p => {
+      const { width, height } = p.img;
+      ctx.save();
+      ctx.translate(p.r[0], p.r[1]);
+      ctx.rotate(p.angle);
+      if (height > width);
+      ctx.rotate(Math.PI/2);
+
+      const [ w, h ] = [ clamp(2*p.glowR*width, 0, width), clamp(2*p.glowR*height, 0, height) ];
+      ctx.drawImage(glowImg, -w/2, -h/2, w, h);
+      ctx.restore()
+    });
+    diatoms.forEach(p => {
+      const { width, height } = p.img;
+      const s = scale * p.scale;
+      ctx.save();
+      ctx.translate(p.r[0], p.r[1]);
+      ctx.rotate(p.angle);
+      if (height > width);
+      ctx.rotate(Math.PI/2);
+
+      ctx.drawImage(p.img, -s*width/2, -s*height/2, s*width, s*height);
+
+      ctx.restore();
+    });
+  };
+
+
+  // create small diatoms
   const diatomImages = await Promise.all([
     // loadImage('/texture/diatom1.png'),
     // loadImage('/texture/diatom3.png'),
@@ -38,30 +112,17 @@ window.onload = async () => {
     // loadImage('/texture/diatom22.png'),
   ]);
 
-  const glowImg = await loadImage('/texture/glow.png');
-  const densityImg = await loadImage('/texture/density.png');
-
-  const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1080);
-  const canvas = document.createElement('canvas');
-  canvas.width = fluidCanvas.width;
-  canvas.height = fluidCanvas.height;
-  document.body.append(canvas);
-  const ctx = canvas.getContext('2d');
-
-  const densityCanvas = document.createElement('canvas');
-  densityCanvas.width = canvas.width;
-  densityCanvas.height = canvas.height;
-  const densityCtx = densityCanvas.getContext('2d', { willReadFrequently: true });
-
   const N = 20; const M = 20;
-  let particles = [ ...Array(N).keys() ].map(i => [ ...Array(M).keys() ].map(j => ({
+  const smallDiatoms = [ ...Array(N).keys() ].map(i => [ ...Array(M).keys() ].map(j => ({
     r: [ (i+Math.random())*(canvas.width/N), (j+Math.random())*(canvas.height/M) ],
     angle: 2*Math.PI*Math.random(),
     angleSpeed: 0,
     img: diatomImages[Math.floor(Math.random()*diatomImages.length)],
     v: [ 2*Math.random()-1, 2*Math.random()-1 ],
     glowR: 0,
+    scale: (1+3*Math.random())/3,
   }))).flat();
+
 
   let ms = 0;
   const draw = (now) => {
@@ -69,101 +130,8 @@ window.onload = async () => {
     ms = now;
     updateFluid(now);
     ctx.drawImage(fluidCanvas, 0, 0);
-    densityCtx.clearRect(0, 0, densityCanvas.width, densityCanvas.height);
-    const scale = 0.05;
-    particles.forEach(p => {
-      const { r, v, a, angle } = p;
-      const nx = [ Math.cos(angle), Math.sin(angle) ];
-      const ny = [ Math.sin(angle), Math.cos(angle) ];
-      
-      const { width, height } = p.img;
-      const separation = 0.5*scale * Math.min(width, height) * Math.max(width/height, height/width);
-      const [ lx, ly ] = addv(r, scalev(nx, separation));
-      const [ rx, ry ] = subv(r, scalev(nx, separation));
-      const fl = readFluidVelocity(lx/canvas.width, ly/canvas.height);
-      const fr = readFluidVelocity(rx/canvas.width, ry/canvas.height);
-
-      const force = addv(fl, fr);
-      const acc = addv(force, scalev([ 2*Math.random()-1, 2*Math.random()-1 ], 1.0));
-
-      const torque = dot(ny, fl) - dot(ny, fr) + 0.1*(2*Math.random()-1);
-      p.angleSpeed = clamp(lerp(p.angleSpeed+0.1*torque*dt, 0, dt), -5, 5);
-      p.angle += p.angleSpeed;
-      p.v = lerpv(addv(p.v, acc), [ 0, 0 ], 0.5*dt);
-      p.r = addv(p.r, scalev(p.v, dt));
-      p.r[0] = clamp(p.r[0], 10, canvas.width-10);
-      p.r[1] = clamp(p.r[1], 10, canvas.height-10);
-
-      // densityCtx.drawImage(densityImg, -densityImg.width/2, -densityImg.height/2, densityImg.width, densityImg.height);
-
-      const glowRadius = lerp(p.glowR, scale * len(force) * 2 * (1 - 0.3*Math.random()), 0.5);
-      p.glowR = glowRadius;
-    });
-    // particles.forEach(p => {
-    //   const data = densityCtx.getImageData(Math.floor(p.r[0]), Math.floor(p.r[1]), 1, 1);
-    //   const density = data[3]/255;
-    //   p.v = addv(p.v, scalev([ 2*Math.random()-1, 2*Math.random()-1], density));
-    // });
-    particles.forEach(p => {
-      const { width, height } = p.img;
-      ctx.save();
-      ctx.translate(p.r[0], p.r[1]);
-      ctx.rotate(p.angle);
-      if (height > width);
-      ctx.rotate(Math.PI/2);
-
-      const [ w, h ] = [ clamp(2*p.glowR*width, 0, width), clamp(2*p.glowR*height, 0, height) ];
-      ctx.drawImage(glowImg, -w/2, -h/2, w, h);
-      ctx.restore()
-    });
-    particles.forEach(p => {
-      const { width, height } = p.img;
-      ctx.save();
-      ctx.translate(p.r[0], p.r[1]);
-      ctx.rotate(p.angle);
-      if (height > width);
-      ctx.rotate(Math.PI/2);
-
-      //ctx.drawImage(glowImg, -glowRadius, -glowRadius, 2*glowRadius, 2*glowRadius);
-      ctx.drawImage(p.img, -scale*width/2, -scale*height/2, scale*width, scale*height);
-
-      ctx.restore();
-    });
- 
-     
-      /*
-      ctx.strokeStyle = '#000000';
-      ctx.beginPath();
-      ctx.moveTo(lx, ly);
-      ctx.lineTo(rx, ry);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.fillStyle= '#ff0000';
-      ctx.arc(lx, ly, 5, 0, 2*Math.PI);
-      ctx.fill();
-      ctx.strokeStyle = '#ffff00';
-      ctx.beginPath();
-      ctx.moveTo(lx, ly);
-      ctx.lineTo(lx+10*fl[0], ly+10*fl[1]);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.fillStyle= '#00ff00';
-      ctx.arc(rx, ry, 5, 0, 2*Math.PI);
-      ctx.fill();
-      ctx.strokeStyle = '#ffff00';
-      ctx.beginPath();
-      ctx.moveTo(rx, ry);
-      ctx.lineTo(rx+10*fr[0], ry+10*fr[1]);
-      ctx.stroke();
-
-      ctx.strokeStyle = '#ff0000';
-      ctx.beginPath();
-      ctx.moveTo(r[0], r[1]);
-      ctx.lineTo(r[0]+10*force[0], r[1]+10*force[1]);
-      ctx.stroke();
-      //*/
+    updateDiatoms(smallDiatoms, dt);
+    drawDiatoms(smallDiatoms);
     requestAnimationFrame(draw);
   }
 
