@@ -118,11 +118,8 @@ export const createFluidCanvas = (width, height) => {
     void main() {
       vec2 v = texture(tex, s_uv).xy;
       float angle = 180.0 + 180.0*atan(v.y, v.x) / 3.141592;
-      float r = length(v);
-
-      // frag = vec4(hsv2rgb(vec3(angle, 1.0, r)), 1.0);
+      float r = 0.4*length(v);
       frag = vec4(c.r, c.g+clamp(r-0.2, 0.0, 1.0), c.b+r, 1);
-      // frag = vec4(c.r+r, c.g+clamp(r-0.8, 0.0, 1.0), c.b, 1);
     }`
   );
 

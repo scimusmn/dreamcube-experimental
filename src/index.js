@@ -31,8 +31,8 @@ window.onload = async () => {
       const fl = readFluidVelocity(lx/canvas.width, ly/canvas.height);
       const fr = readFluidVelocity(rx/canvas.width, ry/canvas.height);
 
-      const force = addv(fl, fr);
-      const acc = addv(force, scalev([ 2*Math.random()-1, 2*Math.random()-1 ], 1.0));
+      const force = scalev(addv(fl, fr), p.coupling);
+      const acc = addv(force, scalev([ 2*Math.random()-1, 2*Math.random()-1 ], p.brownian));
 
       const torque = dot(ny, fl) - dot(ny, fr) + 0.1*(2*Math.random()-1);
       p.angleSpeed = clamp(lerp(p.angleSpeed+0.1*torque*dt, 0, dt), -5, 5);
@@ -58,6 +58,7 @@ window.onload = async () => {
 
   // draw diatoms
   const glowImg = await loadImage('/texture/glow.png');
+
   const drawDiatoms = (diatoms) => {
     diatoms.forEach(p => {
       const { width, height } = p.img;
@@ -87,10 +88,8 @@ window.onload = async () => {
   };
 
 
-  // create small diatoms
+  // create diatoms
   const diatomImages = await Promise.all([
-    // loadImage('/texture/diatom1.png'),
-    // loadImage('/texture/diatom3.png'),
     loadImage('/texture/diatom4.png'),
     loadImage('/texture/diatom5.png'),
     loadImage('/texture/diatom6.png'),
@@ -100,6 +99,7 @@ window.onload = async () => {
     loadImage('/texture/diatom10.png'),
     loadImage('/texture/diatom11.png'),
     loadImage('/texture/diatom12.png'),
+
     // loadImage('/texture/diatom13.png'),
     // loadImage('/texture/diatom14.png'),
     // loadImage('/texture/diatom15.png'),
@@ -112,16 +112,29 @@ window.onload = async () => {
     // loadImage('/texture/diatom22.png'),
   ]);
 
-  const N = 20; const M = 20;
-  const smallDiatoms = [ ...Array(N).keys() ].map(i => [ ...Array(M).keys() ].map(j => ({
-    r: [ (i+Math.random())*(canvas.width/N), (j+Math.random())*(canvas.height/M) ],
-    angle: 2*Math.PI*Math.random(),
-    angleSpeed: 0,
-    img: diatomImages[Math.floor(Math.random()*diatomImages.length)],
-    v: [ 2*Math.random()-1, 2*Math.random()-1 ],
-    glowR: 0,
-    scale: (1+3*Math.random())/3,
-  }))).flat();
+  const largeDiatomImages = await Promise.all([
+    loadImage('/texture/diatom1.png'),
+    loadImage('/texture/diatom3.png'),
+  ]);
+
+
+  const createDiatoms = (N, M, images, scaleRange, coupling, brownian) => 
+    [ ...Array(N).keys() ].map(i => [ ...Array(M).keys() ].map(j => ({
+      r: [ (i+Math.random())*(canvas.width/N), (j+Math.random())*(canvas.height/M) ],
+      angle: 2*Math.PI*Math.random(),
+      angleSpeed: 0,
+      img: images[Math.floor(Math.random()*images.length)],
+      v: [ 2*Math.random()-1, 2*Math.random()-1 ],
+      glowR: 0,
+      scale: (1+scaleRange*Math.random())/scaleRange,
+      coupling,
+      brownian, 
+    }))).flat();
+
+
+  const smallDiatoms = createDiatoms(20, 20, diatomImages, 3, 1.0, 1.0);
+  const largeDiatoms = createDiatoms(5, 5, largeDiatomImages, 3, 0.1, 5.0);
+  console.log(largeDiatoms)
 
 
   let ms = 0;
@@ -130,8 +143,12 @@ window.onload = async () => {
     ms = now;
     updateFluid(now);
     ctx.drawImage(fluidCanvas, 0, 0);
+
     updateDiatoms(smallDiatoms, dt);
+    updateDiatoms(largeDiatoms, dt);
     drawDiatoms(smallDiatoms);
+    drawDiatoms(largeDiatoms);
+
     requestAnimationFrame(draw);
   }
 
