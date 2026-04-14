@@ -1,6 +1,7 @@
 import { createFluidCanvas } from './fluidcanvas.js';
 import { loadImage } from './image.js';
 
+const BACKGROUND_MUSIC_LOOP = '/audio/ES_Lineal-Aerian.mp3';  
 
 const lerp = (a, b, x) => (1-x)*a + (x*b);
 const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
@@ -16,6 +17,17 @@ const lerpv = (u, v, x) => u.map((_, i) => lerp(u[i], v[i], x));
 window.onload = async () => {
   const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1080);
   const scale = 0.05;
+
+  // Ambient audio loop — only plays when `primary=true` query param is found
+  if (new URLSearchParams(window.location.search).get('primary') === 'true') {
+    const audio = new Audio(BACKGROUND_MUSIC_LOOP);
+    audio.loop = true;
+    audio.play().catch(() => {
+      // Autoplay was blocked - Stele is configured to allow autoplay, 
+      // but we keep this fallback for testing outside Stele.
+      document.addEventListener('pointerdown', () => audio.play(), { once: true });
+    });
+  }
 
   // update the physical parameters (position, rotation, etc) of each diatom
   const updateDiatoms = (diatoms, dt) => {
