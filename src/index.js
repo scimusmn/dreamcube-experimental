@@ -14,7 +14,7 @@ const lerpv = (u, v, x) => u.map((_, i) => lerp(u[i], v[i], x));
 
 
 window.onload = async () => {
-  const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1080);
+  const [ fluidCanvas, updateFluid, readFluidVelocity ] = createFluidCanvas(1920, 1200);
   const scale = 0.05;
 
   // update the physical parameters (position, rotation, etc) of each diatom

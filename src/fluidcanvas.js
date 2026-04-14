@@ -113,13 +113,18 @@ export const createFluidCanvas = (width, height) => {
     }
 
     const vec3 c = vec3(0.05, 0.1, 0.15);
+    const vec3 bright = vec3(0.05, 0.1, 0.15);
+    const vec3 dim = vec3(0.0, -0.2, 0.2);
     // const vec3 c = vec3(0.15, 0.1, 0.05);
 
     void main() {
       vec2 v = texture(tex, s_uv).xy;
       float angle = 180.0 + 180.0*atan(v.y, v.x) / 3.141592;
       float r = 0.4*length(v);
-      frag = vec4(c.r, c.g+clamp(r-0.2, 0.0, 1.0), c.b+r, 1);
+      // vec4 color = vec4(c.r, c.g+clamp(r-0.2, 0.0, 1.0), c.b+r, 1);
+      vec3 color = r*bright + dim;
+      float k = 3.0;color;
+      frag = vec4(clamp(color.r, 0.0, k*dim.r), clamp(color.g, 0.0, k*dim.g), clamp(color.b, 0.0, k*dim.b), 1.0);
     }`
   );
 
